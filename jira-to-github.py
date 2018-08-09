@@ -35,7 +35,7 @@ class JiraToGithub:
         self.github_url = 'https://api.github.com/repos/{}/{}'.format(github_user, github_repo)
         self.projects = {}
         self.dry_run = False
-        self.cached_data = []
+        self.cached_data = {}
 
     ##
     # Set cache path and reload cached data if needed
@@ -220,10 +220,12 @@ class JiraToGithub:
         bar = ProgressBar(max_value=len(self.projects[self.jira_project]['Issues']))
         cant_migrate = []
         for index, issue in enumerate(self.projects[self.jira_project]['Issues']):
-            if issue['key'] in self.cached_data:
+            # Check if this issue has already been created on github
+            if self.jira_project in self.cached_data and issue['key'] in self.cached_data[self.cached_data]:
                 bar.update(index)
                 continue
 
+            # Check for milestone
             if 'milestone_name' in issue:
                 issue['milestone'] = self.projects[self.jira_project]['Milestones'][issue['milestone_name']]
                 if issue['milestone'] is None:
@@ -253,6 +255,10 @@ class JiraToGithub:
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
+        if len(cant_migrate) > 0:
+            print('THis jira issues are on errors: ')
+            print(dir(cant_migrate))
+
     ##
     # Return github auth
     #
@@ -275,7 +281,10 @@ class JiraToGithub:
                 return False
 
         # Save cache
-        self.cached_data.append(issue['key'])
+        if self.jira_project not in self.cached_data:
+            self.cached_data[self.jira_project] = []
+
+        self.cached_data[self.jira_project].append(issue['key'])
         with open(self.cache_path, 'wb') as fp:
             pickle.dump(self.cached_data, fp)
 
