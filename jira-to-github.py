@@ -280,18 +280,20 @@ class JiraToGithub:
             if response_create.status_code != 201:
                 return False
 
+        content = json.loads(response_create.content)
+
         # Save cache
         if self.jira_project not in self.cached_data:
-            self.cached_data[self.jira_project] = []
+            self.cached_data[self.jira_project] = {}
 
-        self.cached_data[self.jira_project].append(issue['key'])
+        # @TODO
+        self.cached_data[self.jira_project][issue['key']] = content['url']
         with open(self.cache_path, 'wb') as fp:
             pickle.dump(self.cached_data, fp)
 
         if self.dry_run:
             return True
 
-        content = json.loads(response_create.content)
         for comment in comments:
             response_comment = requests.post(
                 self.github_url + '/issues/' + str(content['number']) + '/comments',
