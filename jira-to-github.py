@@ -286,7 +286,6 @@ class JiraToGithub:
         if self.jira_project not in self.cached_data:
             self.cached_data[self.jira_project] = {}
 
-        # @TODO
         self.cached_data[self.jira_project][issue['key']] = content['url']
         with open(self.cache_path, 'wb') as fp:
             pickle.dump(self.cached_data, fp)
