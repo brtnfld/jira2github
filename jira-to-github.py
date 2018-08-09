@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import csv
 import getpass
 import json
 import os
@@ -13,6 +14,9 @@ from lxml import objectify
 from collections import defaultdict
 
 class JiraToGithub:
+    ##
+    # Initialize github and Jira information
+    #
     def __init__(
         self,
         xml_path,
@@ -31,33 +35,65 @@ class JiraToGithub:
         self.github_url = 'https://api.github.com/repos/{}/{}'.format(github_user, github_repo)
         self.projects = {}
         self.dry_run = False
-
         self.cached_data = []
+
+    ##
+    # Set cache path and reload cached data if needed
+    #
+    def set_cache_path(self, cache_path):
+        if cache_path is None:
+            cache_path = os.path.abspath('cache.txt')
+
+
+        self.cache_path = cache_path
+
         try:
-            if os.path.getsize(os.path.abspath('cache.txt')) > 0:
-                with open('cache.txt', 'rb') as fp:
+            if os.path.getsize(self.cache_path) > 0:
+                with open(self.cache_path, 'rb') as fp:
                     self.cached_data = pickle.load(fp)
         except FileNotFoundError:
             pass
 
+    ##
+    # Set cache path and reload cached data if needed
+    #
+    def set_aliases_path(self, aliases_path):
+        self.aliases = dict()
+        if aliases_path is not None:
+            with open(aliases_path, encoding='utf-8') as f:
+                r = csv.reader(f, delimiter=',', quotechar='"')
+                self.aliases = dict(r)
+
+   ##
+    # Enable dry run mode
+    #
     def set_dry_run(self, dry_run):
         if dry_run is True:
             print('Run into dry-run mode')
             self.dry_run = dry_run
 
+    ##
+    # Html entity decode
+    #
     def htmlentitydecode(self, s):
         if s is None: return ''
         s = s.replace(' '*8, '')
         return re.sub('&(%s);' % '|'.join(name2codepoint),
             lambda m: chr(name2codepoint[m.group(1)]), s)
 
+    ##
+    # Extract issues from xml
+
     def extract(self):
         all_xml = objectify.fromstring(open(self.xml_path).read())
 
         for item in all_xml.channel.item:
-            self.add(item)
+            self._add_to_projects(item)
 
-    def add(self, item):
+    ##
+    # Add issues and informations into projects list
+    #
+    def _add_to_projects(self, item):
         try:
             proj = item.project.get('key')
         except AttributeError:
@@ -131,6 +167,9 @@ class JiraToGithub:
         except AttributeError:
             pass
 
+    ##
+    # Prettify data
+    #
     def prettify(self):
         def hist(h):
             for key in h.keys():
@@ -148,7 +187,9 @@ class JiraToGithub:
             print('    Total Issues: {}'.format(len(self.projects[proj]['Issues'])))
             print('')
 
-
+    ##
+    # Check for github milestones
+    #
     def milestones(self):
         print('Making milestones...', self.github_url + '/milestones')
         print('')
@@ -170,8 +211,9 @@ class JiraToGithub:
             if find_in_milestones(response_json, mkey) is False:
                 self.projects[self.jira_project]['Milestones'][mkey] = None
 
-
-
+    ##
+    # Migrate issue to github
+    #
     def migrate(self):
         print('Creating each issue...')
 
@@ -190,6 +232,18 @@ class JiraToGithub:
 
                 del issue['milestone_name']
 
+            if len(self.aliases) != 0:
+                result = []
+                for i, label in enumerate(issue['labels']):
+                    if label in self.aliases:
+                        if self.aliases[label] == 'DELETED':
+                            continue
+
+                        if self.aliases[label] != 'same':
+                            result.append(self.aliases[label])
+                    result.append(label)
+
+
             comments = issue['comments']
             del issue['comments']
 
@@ -199,10 +253,15 @@ class JiraToGithub:
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
-
+    ##
+    # Return github auth
+    #
     def _github_auth(self):
         return (self.github_user, self.github_password)
 
+    ##
+    # Save issue into github
+    #
     def _save_issue(self, issue, comments):
         if self.dry_run is False:
             response_create = requests.post(
@@ -217,7 +276,7 @@ class JiraToGithub:
 
         # Save cache
         self.cached_data.append(issue['key'])
-        with open('cache.txt', 'wb') as fp:
+        with open(self.cache_path, 'wb') as fp:
             pickle.dump(self.cached_data, fp)
 
         if self.dry_run:
@@ -235,48 +294,16 @@ class JiraToGithub:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Migrate Jira Issues to github.')
-    parser.add_argument(
-        '--xml-path',
-        type=str,
-        help='Jira xml path'
-    )
-    parser.add_argument(
-        '--jira-project',
-        type=str,
-        help='Jira Project to use'
-    )
-    parser.add_argument(
-        '--github-orga',
-        type=str,
-        help='Github organisation'
-    )
-    parser.add_argument(
-        '--github-repo',
-        type=str,
-        help='Github repository'
-    )
-    parser.add_argument(
-        '--github-user',
-        type=str,
-        help='Github user'
-    )
-    parser.add_argument(
-        '--github-password',
-        type=str,
-        help='Github password'
-    )
-    parser.add_argument(
-        '--prettify',
-        action='store_const',
-        const=True,
-        help='show prettify projects'
-    )
-    parser.add_argument(
-        '--dry-run',
-        action='store_const',
-        const=True,
-        help='show prettify projects'
-    )
+    parser.add_argument('--aliases-path', type=str, help='Labels aliases path')
+    parser.add_argument('--cache-path', type=str, help='Cache path')
+    parser.add_argument('--xml-path', type=str, help='Jira xml path')
+    parser.add_argument('--jira-project', type=str, help='Jira Project to use')
+    parser.add_argument('--github-orga', type=str, help='Github organisation')
+    parser.add_argument('--github-repo', type=str, help='Github repository')
+    parser.add_argument('--github-user', type=str, help='Github user')
+    parser.add_argument('--github-password', type=str, help='Github password')
+    parser.add_argument('--prettify', action='store_const', const=True, help='show prettify projects')
+    parser.add_argument('--dry-run',action='store_const', const=True, help='Enable or disable dry-run')
     args = parser.parse_args()
 
     xml_path = args.xml_path if args.xml_path else raw_input('Jira xml path:')
@@ -294,6 +321,8 @@ if __name__ == '__main__':
         github_user,
         github_password,
     )
+    jira_to_github.set_aliases_path(args.aliases_path)
+    jira_to_github.set_cache_path(args.cache_path)
     jira_to_github.set_dry_run(args.dry_run)
 
     jira_to_github.extract()
