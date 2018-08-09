@@ -1,0 +1,5 @@
+pip-tools
+argparse
+lxml
+requests
+progressbar2
