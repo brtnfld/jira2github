@@ -290,7 +290,7 @@ class jira2github:
         if response_create.status_code != 201:
             return response_create
 
-        time.sleep(1)
+        self._sleep()
         content = json.loads(response_create.content)
         self._add_cache_data(issue['key'], content['url'])
 
@@ -301,9 +301,15 @@ class jira2github:
                 auth=self._github_auth(),
                 headers={'Accept': 'application/vnd.github.beta.html+json'}
             )
-            time.sleep(1)
+            self._sleep()
 
         return True
+
+    ##
+    # Sleep
+    #
+    def _sleep(self, seconds=2):
+        time.sleep(seconds)
 
     ##
     # Save issue key and url into cach file
