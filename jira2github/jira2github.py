@@ -1,19 +1,16 @@
-#!/usr/bin/env python
-import argparse
 import csv
-import getpass
 import json
 import os
-import pickle
 import random
 import re
 import requests
+import time
 from progressbar.bar import ProgressBar
 from html.entities import name2codepoint
 from lxml import objectify
 from collections import defaultdict
 
-class JiraToGithub:
+class jira2github:
     ##
     # Initialize github and Jira information
     #
@@ -42,15 +39,14 @@ class JiraToGithub:
     #
     def set_cache_path(self, cache_path):
         if cache_path is None:
-            cache_path = os.path.abspath('cache.txt')
-
+            cache_path = os.path.abspath('cache')
 
         self.cache_path = cache_path
 
         try:
             if os.path.getsize(self.cache_path) > 0:
                 with open(self.cache_path, 'rb') as fp:
-                    self.cached_data = pickle.load(fp)
+                    self.cached_data = json.load(fp)
         except FileNotFoundError:
             pass
 
@@ -218,10 +214,13 @@ class JiraToGithub:
         print('Creating each issue...')
 
         bar = ProgressBar(max_value=len(self.projects[self.jira_project]['Issues']))
-        cant_migrate = []
+        cant_migrate = {
+            'milestone': [],
+            'github': [],
+        }
         for index, issue in enumerate(self.projects[self.jira_project]['Issues']):
             # Check if this issue has already been created on github
-            if self.jira_project in self.cached_data and issue['key'] in self.cached_data[self.cached_data]:
+            if self.jira_project in self.cached_data and issue['key'] in self.cached_data[self.jira_project]:
                 bar.update(index)
                 continue
 
@@ -229,7 +228,7 @@ class JiraToGithub:
             if 'milestone_name' in issue:
                 issue['milestone'] = self.projects[self.jira_project]['Milestones'][issue['milestone_name']]
                 if issue['milestone'] is None:
-                    cant_migrate.append(issue)
+                    cant_migrate['milestone'].append(issue)
                     continue
 
                 del issue['milestone_name']
@@ -250,14 +249,16 @@ class JiraToGithub:
             del issue['comments']
 
             if self._save_issue(issue, comments) is False:
-                cant_migrate.append(issue['title'])
+                cant_migrate['github'].append(issue['title'])
 
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
         if len(cant_migrate) > 0:
             print('THis jira issues are on errors: ')
-            print(dir(cant_migrate))
+            print('Milestone errors: {}'.format(len(cant_migrate['milestone'])))
+            print('Issues errors: {}'.format(len(cant_migrate['github'])))
+
 
     ##
     # Return github auth
@@ -269,29 +270,25 @@ class JiraToGithub:
     # Save issue into github
     #
     def _save_issue(self, issue, comments):
-        if self.dry_run is False:
-            response_create = requests.post(
-                self.github_url + '/issues',
-                json.dumps(issue),
-                auth=self._github_auth(),
-                headers={'Accept': 'application/vnd.github.beta.html+json'}
-            )
+        if self.dry_run:
+            self._add_cache_data(issue['key'], 'N/A')
+            time.sleep(1)
+            return True
 
-            if response_create.status_code != 201:
-                return False
+
+        response_create = requests.post(
+            self.github_url + '/issues',
+            json.dumps(issue),
+            auth=self._github_auth(),
+            headers={'Accept': 'application/vnd.github.beta.html+json'}
+        )
+
+        # Error while saving issue
+        if response_create.status_code != 201:
+            return False
 
         content = json.loads(response_create.content)
-
-        # Save cache
-        if self.jira_project not in self.cached_data:
-            self.cached_data[self.jira_project] = {}
-
-        self.cached_data[self.jira_project][issue['key']] = content['url']
-        with open(self.cache_path, 'wb') as fp:
-            pickle.dump(self.cached_data, fp)
-
-        if self.dry_run:
-            return True
+        self.cache_data(issue['key'], content['url'])
 
         for comment in comments:
             response_comment = requests.post(
@@ -301,43 +298,18 @@ class JiraToGithub:
                 headers={'Accept': 'application/vnd.github.beta.html+json'}
             )
 
+    ##
+    # Save issue key and url into cach file
+    #
+    def _add_cache_data(self, key, url):
+        if self.jira_project not in self.cached_data:
+            self.cached_data[self.jira_project] = {}
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Migrate Jira Issues to github.')
-    parser.add_argument('--aliases-path', type=str, help='Labels aliases path')
-    parser.add_argument('--cache-path', type=str, help='Cache path')
-    parser.add_argument('--xml-path', type=str, help='Jira xml path')
-    parser.add_argument('--jira-project', type=str, help='Jira Project to use')
-    parser.add_argument('--github-orga', type=str, help='Github organisation')
-    parser.add_argument('--github-repo', type=str, help='Github repository')
-    parser.add_argument('--github-user', type=str, help='Github user')
-    parser.add_argument('--github-password', type=str, help='Github password')
-    parser.add_argument('--prettify', action='store_const', const=True, help='show prettify projects')
-    parser.add_argument('--dry-run',action='store_const', const=True, help='Enable or disable dry-run')
-    args = parser.parse_args()
+        self.cached_data[self.jira_project][key] = url
 
-    xml_path = args.xml_path if args.xml_path else raw_input('Jira xml path:')
-    jira_project = args.jira_project if args.jira_project else raw_input('Jira project to use:')
-    github_orga = args.github_orga if args.github_orga else raw_input('Github orga: ')
-    github_repo = args.github_repo if args.github_repo else raw_input('Github repo: ')
-    github_user = args.github_user if args.github_user else raw_input('Github username: ')
-    github_password = args.github_password if args.github_password else getpass.getpass('Github password: ')
-
-    jira_to_github = JiraToGithub(
-        xml_path,
-        jira_project,
-        github_orga,
-        github_repo,
-        github_user,
-        github_password,
-    )
-    jira_to_github.set_aliases_path(args.aliases_path)
-    jira_to_github.set_cache_path(args.cache_path)
-    jira_to_github.set_dry_run(args.dry_run)
-
-    jira_to_github.extract()
-    if args.prettify:
-        jira_to_github.prettify()
-    else:
-        jira_to_github.milestones()
-        jira_to_github.migrate()
+    ##
+    # Save file cache
+    #
+    def save_cache_data(self):
+        with open(self.cache_path, 'w') as fp:
+            json.dump(self.cached_data, fp, ensure_ascii=False)
