@@ -261,7 +261,6 @@ class jira2github:
                     }
                 )
 
-            time.sleep(0.5)
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
@@ -292,6 +291,7 @@ class jira2github:
         if response_create.status_code != 201:
             return response_create
 
+        time.sleep(1)
         content = json.loads(response_create.content)
         self._add_cache_data(issue['key'], content['url'])
 
@@ -302,6 +302,8 @@ class jira2github:
                 auth=self._github_auth(),
                 headers={'Accept': 'application/vnd.github.beta.html+json'}
             )
+            time.sleep(1)
+
 
         return True
 
