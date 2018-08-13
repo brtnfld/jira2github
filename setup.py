@@ -11,7 +11,7 @@ setup(
     author='Pierre Rambaud (GoT)',
     author_email='pierre.rambaud86@gmail.com',
     url='https://github.com/PierreRambaud/jira2github',
-    license='Apache License 2.0',
+    license='GPLv3',
     scripts=['jira2github'],
     packages=['jira2github'],
     install_requires=[

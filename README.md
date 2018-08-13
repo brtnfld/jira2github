@@ -76,4 +76,4 @@ $ flake8
 
 ## License
 
-See [LICENSE.md](LICENSE.md) file
+See [LICENSE.md](LICENSE.md) file.
