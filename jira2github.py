@@ -47,15 +47,11 @@ def main():
         jira_to_github.milestones()
         try:
             jira_to_github.migrate()
-            jira_to_github.save_cache_data()
         except KeyboardInterrupt:
             print('Interrupted, saving cache')
+        finally:
             jira_to_github.save_cache_data()
-
-            try:
-                sys.exit(1)
-            except SystemExit:
-                os._exit(1)
+            jira_to_github.save_errors_data()
 
 
 

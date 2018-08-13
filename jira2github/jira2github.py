@@ -32,6 +32,7 @@ class jira2github:
         self.projects = {}
         self.dry_run = False
         self.cached_data = {}
+        self.migration_errors = {}
 
     ##
     # Set cache path and reload cached data if needed
@@ -213,7 +214,7 @@ class jira2github:
         print('Creating each issue...')
 
         bar = ProgressBar(max_value=len(self.projects[self.jira_project]['Issues']))
-        cant_migrate = {
+        self.migration_errors = {
             'milestone': [],
             'github': [],
         }
@@ -227,7 +228,7 @@ class jira2github:
             if 'milestone_name' in issue:
                 issue['milestone'] = self.projects[self.jira_project]['Milestones'][issue['milestone_name']]
                 if issue['milestone'] is None:
-                    cant_migrate['milestone'].append(issue)
+                    self.migration_errors['milestone'].append(issue['title'])
                     continue
 
                 del issue['milestone_name']
@@ -248,17 +249,12 @@ class jira2github:
             comments = issue['comments']
             del issue['comments']
 
-            if self._save_issue(issue, comments) is False:
-                cant_migrate['github'].append(issue['title'])
+            result = self._save_issue(issue, comments)
+            if result is not True:
+                self.migration_errors['github'].append({'issue': issue, 'result': result})
 
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
-
-        if len(cant_migrate) > 0:
-            print('THis jira issues are on errors: ')
-            print('Milestone errors: {}'.format(len(cant_migrate['milestone'])))
-            print('Issues errors: {}'.format(len(cant_migrate['github'])))
-            self._save_json('errors.json', cant_migrate)
 
 
     ##
@@ -285,7 +281,7 @@ class jira2github:
 
         # Error while saving issue
         if response_create.status_code != 201:
-            return False
+            return response_create
 
         content = json.loads(response_create.content)
         self._add_cache_data(issue['key'], content['url'])
@@ -297,6 +293,8 @@ class jira2github:
                 auth=self._github_auth(),
                 headers={'Accept': 'application/vnd.github.beta.html+json'}
             )
+
+        return True
 
     ##
     # Save issue key and url into cach file
@@ -312,6 +310,16 @@ class jira2github:
     #
     def save_cache_data(self):
         self._save_json(self.cache_path, self.cached_data)
+
+    ##
+    # Save errors data
+    #
+    def save_errors_data(self):
+        if len(self.migration_errors) > 0:
+            print('This jira issues are on errors: ')
+            print('Milestone errors: {}'.format(len(self.migration_errors['milestone'])))
+            print('Issues errors: {}'.format(len(self.migration_errors['github'])))
+            self._save_json('errors.json', self.migration_errors)
 
     ##
     # Save json file
