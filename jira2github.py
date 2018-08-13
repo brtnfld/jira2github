@@ -18,7 +18,8 @@ def main():
     parser.add_argument('--github-user', type=str, help='Github user')
     parser.add_argument('--github-password', type=str, help='Github password')
     parser.add_argument('--prettify', action='store_const', const=True, help='show prettify projects')
-    parser.add_argument('--dry-run',action='store_const', const=True, help='Enable or disable dry-run')
+    parser.add_argument('--dry-run', action='store_const', const=True, help='Enable or disable dry-run')
+    parser.add_argument('--check-rate-limit', action='store_const', const=True, help='Check rate limit')
     args = parser.parse_args()
 
     xml_path = args.xml_path if args.xml_path else raw_input('Jira xml path:')
@@ -43,6 +44,8 @@ def main():
     jira_to_github.extract()
     if args.prettify:
         jira_to_github.prettify()
+    elif args.check_rate_limit:
+        jira_to_github.check_rate_limit()
     else:
         jira_to_github.milestones()
         try:

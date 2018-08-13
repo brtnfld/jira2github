@@ -4,6 +4,7 @@ import os
 import random
 import re
 import requests
+import time
 from progressbar.bar import ProgressBar
 from html.entities import name2codepoint
 from lxml import objectify
@@ -191,7 +192,8 @@ class jira2github:
         print('')
 
         r = requests.get(
-            self.github_url + '/milestones'
+            self.github_url + '/milestones',
+            auth=self._github_auth()
         )
 
         def find_in_milestones(response, title):
@@ -251,8 +253,15 @@ class jira2github:
 
             result = self._save_issue(issue, comments)
             if result is not True:
-                self.migration_errors['github'].append({'issue': issue, 'result': result})
+                self.migration_errors['github'].append(
+                    {
+                        'issue': issue,
+                        'result': json.loads(result.content),
+                        'status': result.status_code,
+                    }
+                )
 
+            time.sleep(0.5)
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
@@ -327,3 +336,14 @@ class jira2github:
     def _save_json(self, file_path, data):
         with open(file_path, 'w') as fp:
             json.dump(data, fp, ensure_ascii=False)
+
+    ##
+    # Check rate Limit
+    #
+    def check_rate_limit(self):
+        limit = requests.get(
+            'https://api.github.com/rate_limit',
+            auth=self._github_auth(),
+            headers={'Accept': 'application/vnd.github.beta.html+json'}
+        )
+        print(json.loads(limit.content))
