@@ -19,13 +19,13 @@ From Github
 ```bash
 $ git clone https://github.com/PierreRambaud/jira2github.git
 $ cd jira2github
-$ ./jira2github --help
+$ ./jira2github.py --help
 ```
 
 ## Usage
 
 ```bash
-$ jira2github -h
+$ ./jira2github.py -h
 usage: jira2github.py [-h] [--aliases-path ALIASES_PATH]
                       [--cache-path CACHE_PATH] [--xml-path XML_PATH]
                       [--jira-project JIRA_PROJECT]
