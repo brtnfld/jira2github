@@ -4,7 +4,6 @@ import os
 import random
 import re
 import requests
-import time
 from progressbar.bar import ProgressBar
 from html.entities import name2codepoint
 from lxml import objectify
@@ -39,7 +38,7 @@ class jira2github:
     #
     def set_cache_path(self, cache_path):
         if cache_path is None:
-            cache_path = os.path.abspath('cache')
+            cache_path = os.path.abspath('cache.json')
 
         self.cache_path = cache_path
 
@@ -242,8 +241,9 @@ class jira2github:
 
                         if self.aliases[label] != 'same':
                             result.append(self.aliases[label])
+                            continue
                     result.append(label)
-
+                issue['labels'] = result
 
             comments = issue['comments']
             del issue['comments']
@@ -258,6 +258,7 @@ class jira2github:
             print('THis jira issues are on errors: ')
             print('Milestone errors: {}'.format(len(cant_migrate['milestone'])))
             print('Issues errors: {}'.format(len(cant_migrate['github'])))
+            self._save_json('errors.json', cant_migrate)
 
 
     ##
@@ -271,8 +272,7 @@ class jira2github:
     #
     def _save_issue(self, issue, comments):
         if self.dry_run:
-            self._add_cache_data(issue['key'], 'N/A')
-            time.sleep(1)
+            self._add_cache_data(issue['key'], issue)
             return True
 
 
@@ -288,7 +288,7 @@ class jira2github:
             return False
 
         content = json.loads(response_create.content)
-        self.cache_data(issue['key'], content['url'])
+        self._add_cache_data(issue['key'], content['url'])
 
         for comment in comments:
             response_comment = requests.post(
@@ -311,5 +311,11 @@ class jira2github:
     # Save file cache
     #
     def save_cache_data(self):
-        with open(self.cache_path, 'w') as fp:
-            json.dump(self.cached_data, fp, ensure_ascii=False)
+        self._save_json(self.cache_path, self.cached_data)
+
+    ##
+    # Save json file
+    #
+    def _save_json(self, file_path, data):
+        with open(file_path, 'w') as fp:
+            json.dump(data, fp, ensure_ascii=False)

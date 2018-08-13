@@ -1,5 +1,6 @@
 # Cache File
-cache
+cache.json
+errors.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
