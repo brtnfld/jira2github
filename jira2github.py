@@ -2,9 +2,6 @@
 import argparse
 import getpass
 import jira2github
-import json
-import os
-import sys
 
 
 def main():
@@ -22,11 +19,11 @@ def main():
     parser.add_argument('--check-rate-limit', action='store_const', const=True, help='Check rate limit')
     args = parser.parse_args()
 
-    xml_path = args.xml_path if args.xml_path else raw_input('Jira xml path:')
-    jira_project = args.jira_project if args.jira_project else raw_input('Jira project to use:')
-    github_orga = args.github_orga if args.github_orga else raw_input('Github orga: ')
-    github_repo = args.github_repo if args.github_repo else raw_input('Github repo: ')
-    github_user = args.github_user if args.github_user else raw_input('Github username: ')
+    xml_path = args.xml_path if args.xml_path else input('Jira xml path:')
+    jira_project = args.jira_project if args.jira_project else input('Jira project to use:')
+    github_orga = args.github_orga if args.github_orga else input('Github orga: ')
+    github_repo = args.github_repo if args.github_repo else input('Github repo: ')
+    github_user = args.github_user if args.github_user else input('Github username: ')
     github_password = args.github_password if args.github_password else getpass.getpass('Github password: ')
 
     jira_to_github = jira2github.jira2github(
@@ -55,7 +52,6 @@ def main():
         finally:
             jira_to_github.save_cache_data()
             jira_to_github.save_errors_data()
-
 
 
 if __name__ == '__main__':

@@ -1,7 +1,6 @@
 import csv
 import json
 import os
-import random
 import re
 import requests
 import time
@@ -9,6 +8,7 @@ from progressbar.bar import ProgressBar
 from html.entities import name2codepoint
 from lxml import objectify
 from collections import defaultdict
+
 
 class jira2github:
     ##
@@ -61,7 +61,7 @@ class jira2github:
                 r = csv.reader(f, delimiter=',', quotechar='"')
                 self.aliases = dict(r)
 
-   ##
+    ##
     # Enable dry run mode
     #
     def set_dry_run(self, dry_run):
@@ -73,7 +73,9 @@ class jira2github:
     # Html entity decode
     #
     def htmlentitydecode(self, s):
-        if s is None: return ''
+        if s is None:
+            return ''
+
         s = s.replace(' '*8, '')
         return re.sub('&(%s);' % '|'.join(name2codepoint),
             lambda m: chr(name2codepoint[m.group(1)]), s)
@@ -204,7 +206,6 @@ class jira2github:
 
         response_json = r.json()
 
-        milestones = {}
         for mkey in iter(self.projects[self.jira_project]['Milestones'].keys()):
             if find_in_milestones(response_json, mkey) is False:
                 self.projects[self.jira_project]['Milestones'][mkey] = None
@@ -264,7 +265,6 @@ class jira2github:
             bar.update(index)
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
-
     ##
     # Return github auth
     #
@@ -278,7 +278,6 @@ class jira2github:
         if self.dry_run:
             self._add_cache_data(issue['key'], issue)
             return True
-
 
         response_create = requests.post(
             self.github_url + '/issues',
@@ -296,14 +295,13 @@ class jira2github:
         self._add_cache_data(issue['key'], content['url'])
 
         for comment in comments:
-            response_comment = requests.post(
+            requests.post(
                 self.github_url + '/issues/' + str(content['number']) + '/comments',
                 json.dumps({'body': comment}),
                 auth=self._github_auth(),
                 headers={'Accept': 'application/vnd.github.beta.html+json'}
             )
             time.sleep(1)
-
 
         return True
 
