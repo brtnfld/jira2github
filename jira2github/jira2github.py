@@ -184,6 +184,8 @@ class jira2github:
         try:
 
             body = '''
+> {custom_message} [{issue_link}]({issue_link})
+
 - _**Author:**_ {author}
 - _**Created at:**_ {created_at}
 
@@ -194,7 +196,9 @@ class jira2github:
                     body.format(
                         author=comment.get('author'),
                         created_at=comment.get('created'),
-                        description=self.htmlentitydecode(comment.text)
+                        description=self.htmlentitydecode(comment.text),
+                        issue_link=item.link.text,
+                        custom_message=self.custom_message,
                     )
                 )
         except AttributeError:
