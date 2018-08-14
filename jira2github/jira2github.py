@@ -107,16 +107,31 @@ class jira2github:
             }
 
         try:
-            resolved_at = ', resolved="' + item.resolved.text + '"'
+            resolved_at = '- _**Resolved at:**_ {resolved_at}'.format(resolved_at=item.resolved.text)
         except AttributeError:
             resolved_at = ''
+
+        body = '''
+- _**Reporter:**_ {reporter}
+- _**Created at:**_ {created_at}
+- _**Forge link:**_ [{issue_link}]({issue_link})
+{resolved_at}
+
+{description}
+        '''
 
         self.projects[self.jira_project]['Issues'].append(
             {
                 'title': item.title.text,
                 'type': item.type.text,
                 'key': item.key.text,
-                'body': '<b><i>[reporter="' + item.reporter.get('username') + '", created="' + item.created.text + '"' + resolved_at + ']</i></b>\n' + self.htmlentitydecode(item.description.text),
+                'body': body.format(
+                    reporter=item.reporter.get('username'),
+                    created_at=item.created.text,
+                    description=self.htmlentitydecode(item.description.text),
+                    resolved_at=resolved_at,
+                    issue_link=item.link.text,
+                ),
                 'labels': [item.status.text, item.type.text],
                 'comments': [],
             }
@@ -156,12 +171,20 @@ class jira2github:
             pass
 
         try:
+
+            body = '''
+- _**Author:**_ {author}
+- _**Created at:**_ {created_at}
+
+{description}
+        '''
             for comment in item.comments.comment:
                 self.projects[self.jira_project]['Issues'][-1]['comments'].append(
-                    '<b><i>[author="' +
-                    comment.get('author') + '", created="' +
-                    comment.get('created') + '"]</i></b>\n' +
-                    self.htmlentitydecode(comment.text)
+                    body.format(
+                        author=comment.get('author'),
+                        created_at=comment.get('created'),
+                        description=self.htmlentitydecode(comment.text)
+                    )
                 )
         except AttributeError:
             pass
