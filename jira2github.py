@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--github-repo', type=str, help='Github repository')
     parser.add_argument('--github-user', type=str, help='Github user')
     parser.add_argument('--github-password', type=str, help='Github password')
+    parser.add_argument('--custom-message', type=str, help='Custom message when creating issue')
     parser.add_argument('--prettify', action='store_const', const=True, help='show prettify projects')
     parser.add_argument('--dry-run', action='store_const', const=True, help='Enable or disable dry-run')
     parser.add_argument('--check-rate-limit', action='store_const', const=True, help='Check rate limit')
@@ -37,6 +38,7 @@ def main():
     jira_to_github.set_aliases_path(args.aliases_path)
     jira_to_github.set_cache_path(args.cache_path)
     jira_to_github.set_dry_run(args.dry_run)
+    jira_to_github.set_custom_message(args.custom_message)
 
     jira_to_github.extract()
     if args.prettify:

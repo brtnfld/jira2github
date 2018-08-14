@@ -62,6 +62,15 @@ class jira2github:
                 self.aliases = dict(r)
 
     ##
+    # Set custom message
+    #
+    def set_custom_message(self, custom_message):
+        if custom_message is not None:
+            self.custom_message = custom_message
+        else:
+            self.custom_message = 'This issue has been migrated from this Forge ticket'
+
+    ##
     # Enable dry run mode
     #
     def set_dry_run(self, dry_run):
@@ -112,9 +121,10 @@ class jira2github:
             resolved_at = ''
 
         body = '''
+> {custom_message} [{issue_link}]({issue_link})
+
 - _**Reporter:**_ {reporter}
 - _**Created at:**_ {created_at}
-- _**Forge link:**_ [{issue_link}]({issue_link})
 {resolved_at}
 
 {description}
@@ -131,6 +141,7 @@ class jira2github:
                     description=self.htmlentitydecode(item.description.text),
                     resolved_at=resolved_at,
                     issue_link=item.link.text,
+                    custom_message=self.custom_message,
                 ),
                 'labels': [item.status.text, item.type.text],
                 'comments': [],
