@@ -11,6 +11,9 @@ from collections import defaultdict
 
 
 class jira2github:
+
+    TYPE_FLOAT = 'com.atlassian.jira.plugin.system.customfieldtypes:float'
+
     ##
     # Initialize github and Jira information
     #
@@ -183,12 +186,17 @@ class jira2github:
 
         try:
             for customfield in item.customfields.customfield:
-                if customfield.customfieldname.text in ['Story Points']:
+                if customfield.get('key') == self.TYPE_FLOAT:
+                    field_value = int(float(customfield.customfieldvalues.customfieldvalue[0].text))
+                elif isinstance(customfield.customfieldvalues, list):
                     field_value = customfield.customfieldvalues.customfieldvalue[0].text
+                else:
+                    field_value = customfield.customfieldvalues.text
+
+                if customfield.customfieldname.text in ['Story Points']:
                     self.projects[self.jira_project]['Labels'][field_value] += 1
                     self.projects[self.jira_project]['Issues'][-1]['labels'].append(field_value)
         except AttributeError:
-            print('here')
             pass
 
         try:
