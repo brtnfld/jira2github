@@ -31,8 +31,9 @@ usage: jira2github.py [-h] [--aliases-path ALIASES_PATH]
                       [--jira-project JIRA_PROJECT]
                       [--github-orga GITHUB_ORGA] [--github-repo GITHUB_REPO]
                       [--github-user GITHUB_USER]
-                      [--github-password GITHUB_PASSWORD] [--prettify]
-                      [--dry-run]
+                      [--github-password GITHUB_PASSWORD]
+                      [--custom-message CUSTOM_MESSAGE] [--prettify]
+                      [--dry-run] [--check-rate-limit]
 
 Migrate Jira Issues to github.
 
@@ -53,8 +54,11 @@ optional arguments:
                         Github user
   --github-password GITHUB_PASSWORD
                         Github password
+  --custom-message CUSTOM_MESSAGE
+                        Custom message when creating issue
   --prettify            show prettify projects
   --dry-run             Enable or disable dry-run
+  --check-rate-limit    Check rate limit
 ```
 
 

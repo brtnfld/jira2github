@@ -182,6 +182,16 @@ class jira2github:
             pass
 
         try:
+            for customfield in item.customfields.customfield:
+                if customfield.customfieldname.text in ['Story Points']:
+                    field_value = customfield.customfieldvalues.customfieldvalue[0].text
+                    self.projects[self.jira_project]['Labels'][field_value] += 1
+                    self.projects[self.jira_project]['Issues'][-1]['labels'].append(field_value)
+        except AttributeError:
+            print('here')
+            pass
+
+        try:
 
             body = '''
 > {custom_message} [{issue_link}]({issue_link})
