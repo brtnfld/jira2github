@@ -342,11 +342,13 @@ class jira2github:
             headers={'Accept': 'application/vnd.github.beta.html+json'}
         )
 
+        # Sleep even if the response was ok
+        self._sleep()
+
         # Error while saving issue
         if response_create.status_code != 201:
             return response_create
 
-        self._sleep()
         content = json.loads(response_create.content)
         self._add_cache_data(issue['key'], content['url'])
 
@@ -364,7 +366,7 @@ class jira2github:
     ##
     # Sleep
     #
-    def _sleep(self, seconds=2):
+    def _sleep(self, seconds=3):
         time.sleep(seconds)
 
     ##
