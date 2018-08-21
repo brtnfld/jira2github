@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--github-repo', type=str, help='Github repository')
     parser.add_argument('--github-user', type=str, help='Github user')
     parser.add_argument('--github-password', type=str, help='Github password')
+    parser.add_argument('--github-token', type=str, help='Github Token')
     parser.add_argument('--custom-message', type=str, help='Custom message when creating issue')
     parser.add_argument('--prettify', action='store_const', const=True, help='show prettify projects')
     parser.add_argument('--dry-run', action='store_const', const=True, help='Enable or disable dry-run')
@@ -24,8 +25,12 @@ def main():
     jira_project = args.jira_project if args.jira_project else input('Jira project to use:')
     github_orga = args.github_orga if args.github_orga else input('Github orga: ')
     github_repo = args.github_repo if args.github_repo else input('Github repo: ')
-    github_user = args.github_user if args.github_user else input('Github username: ')
-    github_password = args.github_password if args.github_password else getpass.getpass('Github password: ')
+    github_user = None
+    github_password = None
+
+    if not args.github_token:
+        github_user = args.github_user if args.github_user else input('Github username: ')
+        github_password = args.github_password if args.github_password else getpass.getpass('Github password: ')
 
     jira_to_github = jira2github.jira2github(
         xml_path,
@@ -34,7 +39,9 @@ def main():
         github_repo,
         github_user,
         github_password,
+        args.github_token,
     )
+
     jira_to_github.set_aliases_path(args.aliases_path)
     jira_to_github.set_cache_path(args.cache_path)
     jira_to_github.set_dry_run(args.dry_run)

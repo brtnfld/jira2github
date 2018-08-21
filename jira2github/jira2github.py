@@ -13,6 +13,8 @@ from collections import defaultdict
 class jira2github:
 
     TYPE_FLOAT = 'com.atlassian.jira.plugin.system.customfieldtypes:float'
+    METHOD_GET = 'get'
+    METHOD_POST = 'post'
 
     ##
     # Initialize github and Jira information
@@ -25,6 +27,7 @@ class jira2github:
         github_repo,
         github_user,
         github_password,
+        github_token
     ):
         self.xml_path = xml_path
         self.jira_project = jira_project
@@ -32,7 +35,8 @@ class jira2github:
         self.github_user = github_user
         self.github_repo = github_repo
         self.github_password = github_password
-        self.github_url = 'https://api.github.com/repos/{}/{}'.format(github_user, github_repo)
+        self.github_token = github_token
+        self.github_url = 'https://api.github.com/repos/{}/{}'.format(github_orga, github_repo)
         self.projects = {}
         self.dry_run = False
         self.cached_data = {}
@@ -249,9 +253,9 @@ class jira2github:
         print('Making milestones...', self.github_url + '/milestones')
         print('')
 
-        r = requests.get(
+        r = self._execute_request(
+            self.METHOD_GET,
             self.github_url + '/milestones',
-            auth=self._github_auth()
         )
 
         def find_in_milestones(response, title):
@@ -322,12 +326,6 @@ class jira2github:
         bar.update(len(self.projects[self.jira_project]['Issues']))
 
     ##
-    # Return github auth
-    #
-    def _github_auth(self):
-        return (self.github_user, self.github_password)
-
-    ##
     # Save issue into github
     #
     def _save_issue(self, issue, comments):
@@ -335,11 +333,10 @@ class jira2github:
             self._add_cache_data(issue['key'], issue)
             return True
 
-        response_create = requests.post(
+        response_create = self._execute_request(
+            self.METHOD_POST,
             self.github_url + '/issues',
             json.dumps(issue),
-            auth=self._github_auth(),
-            headers={'Accept': 'application/vnd.github.beta.html+json'}
         )
 
         # Sleep even if the response was ok
@@ -353,11 +350,10 @@ class jira2github:
         self._add_cache_data(issue['key'], content['url'])
 
         for comment in comments:
-            requests.post(
+            self._execute_request(
+                self.METHOD_POST,
                 self.github_url + '/issues/' + str(content['number']) + '/comments',
                 json.dumps({'body': comment}),
-                auth=self._github_auth(),
-                headers={'Accept': 'application/vnd.github.beta.html+json'}
             )
             self._sleep()
 
@@ -405,9 +401,35 @@ class jira2github:
     # Check rate Limit
     #
     def check_rate_limit(self):
-        limit = requests.get(
+        limit = self._execute_request(
+            self.METHOD_GET,
             'https://api.github.com/rate_limit',
-            auth=self._github_auth(),
-            headers={'Accept': 'application/vnd.github.beta.html+json'}
         )
         print(json.loads(limit.content))
+
+    ##
+    # Execute requests
+    #
+    def _execute_request(self, method, url, data=None, headers={'Accept': 'application/vnd.github.beta.html+json'}):
+        params = {
+            'headers': headers,
+        }
+
+        if self.github_token is not None:
+            params['headers']['Authorization'] = 'Token {}'.format(self.github_token)
+        else:
+            params['auth'] = (self.github_user, self.github_password)
+
+        if data is not None:
+            params['data'] = data
+
+        if method == self.METHOD_POST:
+            return requests.post(
+                url,
+                **params
+            )
+
+        return requests.get(
+            url,
+            **params
+        )
