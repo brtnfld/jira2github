@@ -6,7 +6,7 @@ setup(
     name='Jira2Github',
     version='1.0',
     description='''
-    Python script to migrate Jira tickets to Github issues
+    Python script to migrate Jira tickets to GitHUb issues
     ''',
     author='Pierre Rambaud (GoT)',
     author_email='pierre.rambaud86@gmail.com',

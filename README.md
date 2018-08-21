@@ -1,6 +1,6 @@
-# Jira 2 Github migration tool
+# Jira 2 GitHub migration tool
 
-Script to convert Jira tickets to Github issues.
+Script to convert Jira tickets to GitHub issues.
 
 ## Supported python version
 
@@ -14,7 +14,7 @@ From Pypi
 $ pip install jira2github
 ```
 
-From Github
+From GitHub
 
 ```bash
 $ git clone https://github.com/PierreRambaud/jira2github.git
@@ -28,10 +28,12 @@ $ ./jira2github.py --help
 $ ./jira2github.py -h
 usage: jira2github.py [-h] [--aliases-path ALIASES_PATH]
                       [--cache-path CACHE_PATH] [--xml-path XML_PATH]
-                      [--jira-project JIRA_PROJECT]
+                      [--jira-url JIRA_URL] [--jira-user JIRA_USER]
+                      [--jira-password JIRA_PASSWORD]
                       [--github-orga GITHUB_ORGA] [--github-repo GITHUB_REPO]
                       [--github-user GITHUB_USER]
                       [--github-password GITHUB_PASSWORD]
+                      [--github-token GITHUB_TOKEN]
                       [--custom-message CUSTOM_MESSAGE] [--prettify]
                       [--dry-run] [--check-rate-limit]
 
@@ -44,16 +46,21 @@ optional arguments:
   --cache-path CACHE_PATH
                         Cache path
   --xml-path XML_PATH   Jira xml path
-  --jira-project JIRA_PROJECT
-                        Jira Project to use
+  --jira-url JIRA_URL   Jira url
+  --jira-user JIRA_USER
+                        Jira user
+  --jira-password JIRA_PASSWORD
+                        Jira user password
   --github-orga GITHUB_ORGA
-                        Github organisation
+                        GitHub organisation
   --github-repo GITHUB_REPO
-                        Github repository
+                        GitHub repository
   --github-user GITHUB_USER
-                        Github user
+                        GitHub user
   --github-password GITHUB_PASSWORD
-                        Github password
+                        GitHub password
+  --github-token GITHUB_TOKEN
+                        GitHub Token
   --custom-message CUSTOM_MESSAGE
                         Custom message when creating issue
   --prettify            show prettify projects

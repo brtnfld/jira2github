@@ -4,6 +4,7 @@ import os
 import re
 import requests
 import time
+from jira import JIRA
 from progressbar.bar import ProgressBar
 from html.entities import name2codepoint
 from lxml import objectify
@@ -22,7 +23,6 @@ class jira2github:
     def __init__(
         self,
         xml_path,
-        jira_project,
         github_orga,
         github_repo,
         github_user,
@@ -30,17 +30,25 @@ class jira2github:
         github_token
     ):
         self.xml_path = xml_path
-        self.jira_project = jira_project
         self.github_orga = github_orga
         self.github_user = github_user
         self.github_repo = github_repo
         self.github_password = github_password
         self.github_token = github_token
         self.github_url = 'https://api.github.com/repos/{}/{}'.format(github_orga, github_repo)
-        self.projects = {}
         self.dry_run = False
+        self.jira = None
+
+        self.projects = {}
         self.cached_data = {}
         self.migration_errors = {}
+
+    def set_jira_config(self, jira_url, jira_user, jira_password):
+        if jira_user and jira_password:
+            self.jira = JIRA(
+                jira_url,
+                basic_auth=(jira_user, jira_password)
+            )
 
     ##
     # Set cache path and reload cached data if needed
@@ -69,13 +77,22 @@ class jira2github:
                 self.aliases = dict(r)
 
     ##
-    # Set custom message
+    # Set custom github message
     #
-    def set_custom_message(self, custom_message):
-        if custom_message is not None:
-            self.custom_message = custom_message
+    def set_custom_github_message(self, custom_github_message):
+        if custom_github_message is not None:
+            self.custom_github_message = custom_github_message
         else:
-            self.custom_message = 'This issue has been migrated from this Forge ticket'
+            self.custom_github_message = 'This issue has been migrated from this Forge ticket'
+
+    ##
+    # Set custom jira message
+    #
+    def set_custom_jira_message(self, custom_jira_message):
+        if custom_jira_message is not None:
+            self.custom_jira_message = custom_jira_message
+        else:
+            self.custom_jira_message = 'Hello, the Forge has moved to GitHub. '
 
     ##
     # Enable dry run mode
@@ -115,7 +132,7 @@ class jira2github:
             proj = item.key.text.split('-')[0]
 
         if proj not in self.projects:
-            self.projects[self.jira_project] = {
+            self.projects[proj] = {
                 'Milestones': defaultdict(int),
                 'Components': defaultdict(int),
                 'Labels': defaultdict(int),
@@ -128,7 +145,7 @@ class jira2github:
             resolved_at = ''
 
         body = '''
-> {custom_message} [{issue_link}]({issue_link})
+> {custom_github_message} [{issue_link}]({issue_link})
 
 - _**Reporter:**_ {reporter}
 - _**Created at:**_ {created_at}
@@ -137,7 +154,7 @@ class jira2github:
 {description}
         '''
 
-        self.projects[self.jira_project]['Issues'].append(
+        self.projects[proj]['Issues'].append(
             {
                 'title': item.title.text,
                 'type': item.type.text,
@@ -148,43 +165,43 @@ class jira2github:
                     description=self.htmlentitydecode(item.description.text),
                     resolved_at=resolved_at,
                     issue_link=item.link.text,
-                    custom_message=self.custom_message,
+                    custom_github_message=self.custom_github_message,
                 ),
                 'labels': [item.status.text, item.type.text],
                 'comments': [],
             }
         )
         try:
-            self.projects[self.jira_project]['Milestones'][item.fixVersion.text] += 1
+            self.projects[proj]['Milestones'][item.fixVersion.text] += 1
             # this prop will be deleted later:
-            self.projects[self.jira_project]['Issues'][-1]['milestone_name'] = item.fixVersion.text
+            self.projects[proj]['Issues'][-1]['milestone_name'] = item.fixVersion.text
         except AttributeError:
             pass
 
         try:
-            self.projects[self.jira_project]['Components'][item.component.text] += 1
-            self.projects[self.jira_project]['Issues'][-1]['labels'].append(item.component.text)
+            self.projects[proj]['Components'][item.component.text] += 1
+            self.projects[proj]['Issues'][-1]['labels'].append(item.component.text)
         except AttributeError:
             pass
 
         try:
             for version in item.version:
                 if re.match('^(\d+.){3}\d+$', version.text) is not None:
-                    self.projects[self.jira_project]['Labels'][version.text] += 1
-                    self.projects[self.jira_project]['Issues'][-1]['labels'].append(version.text)
+                    self.projects[proj]['Labels'][version.text] += 1
+                    self.projects[proj]['Issues'][-1]['labels'].append(version.text)
         except AttributeError:
             pass
 
         try:
-            self.projects[self.jira_project]['Labels'][item.priority.text] += 1
-            self.projects[self.jira_project]['Issues'][-1]['labels'].append(item.priority.text)
+            self.projects[proj]['Labels'][item.priority.text] += 1
+            self.projects[proj]['Issues'][-1]['labels'].append(item.priority.text)
         except AttributeError:
             pass
 
         try:
             for label in item.labels.label:
-                self.projects[self.jira_project]['Labels'][label.text] += 1
-                self.projects[self.jira_project]['Issues'][-1]['labels'].append(label.text)
+                self.projects[proj]['Labels'][label.text] += 1
+                self.projects[proj]['Issues'][-1]['labels'].append(label.text)
         except AttributeError:
             pass
 
@@ -198,15 +215,15 @@ class jira2github:
                     field_value = customfield.customfieldvalues.text
 
                 if customfield.customfieldname.text in ['Story Points']:
-                    self.projects[self.jira_project]['Labels'][field_value] += 1
-                    self.projects[self.jira_project]['Issues'][-1]['labels'].append(field_value)
+                    self.projects[proj]['Labels'][field_value] += 1
+                    self.projects[proj]['Issues'][-1]['labels'].append(field_value)
         except AttributeError:
             pass
 
         try:
 
             body = '''
-> {custom_message} [{issue_link}]({issue_link})
+> {custom_github_message} [{issue_link}]({issue_link})
 
 - _**Author:**_ {author}
 - _**Created at:**_ {created_at}
@@ -214,13 +231,13 @@ class jira2github:
 {description}
         '''
             for comment in item.comments.comment:
-                self.projects[self.jira_project]['Issues'][-1]['comments'].append(
+                self.projects[proj]['Issues'][-1]['comments'].append(
                     body.format(
                         author=comment.get('author'),
                         created_at=comment.get('created'),
                         description=self.htmlentitydecode(comment.text),
                         issue_link=item.link.text,
-                        custom_message=self.custom_message,
+                        custom_github_message=self.custom_github_message,
                     )
                 )
         except AttributeError:
@@ -253,84 +270,89 @@ class jira2github:
         print('Making milestones...', self.github_url + '/milestones')
         print('')
 
+        if self.dry_run:
+            return
+
         r = self._execute_request(
             self.METHOD_GET,
             self.github_url + '/milestones',
         )
 
         def find_in_milestones(response, title):
-            for milestone in r.json():
+            for milestone in response:
                 if mkey == milestone['title']:
                     return True
             return False
 
         response_json = r.json()
 
-        for mkey in iter(self.projects[self.jira_project]['Milestones'].keys()):
-            if find_in_milestones(response_json, mkey) is False:
-                self.projects[self.jira_project]['Milestones'][mkey] = None
+        for proj in iter(self.projects.keys()):
+            for mkey in iter(self.projects[proj]['Milestones'].keys()):
+                if find_in_milestones(response_json, mkey) is False:
+                    self.projects[proj]['Milestones'][mkey] = None
 
     ##
     # Migrate issue to github
     #
     def migrate(self):
-        print('Creating each issue...')
-
-        bar = ProgressBar(max_value=len(self.projects[self.jira_project]['Issues']))
-        self.migration_errors = {
-            'milestone': [],
-            'github': [],
-        }
-        for index, issue in enumerate(self.projects[self.jira_project]['Issues']):
-            # Check if this issue has already been created on github
-            if self.jira_project in self.cached_data and issue['key'] in self.cached_data[self.jira_project]:
-                bar.update(index)
-                continue
-
-            # Check for milestone
-            if 'milestone_name' in issue:
-                issue['milestone'] = self.projects[self.jira_project]['Milestones'][issue['milestone_name']]
-                if issue['milestone'] is None:
-                    self.migration_errors['milestone'].append(issue['title'])
+        for proj in iter(self.projects.keys()):
+            print('Creating issue for proj {}...'.format(proj))
+            bar = ProgressBar(max_value=len(self.projects[proj]['Issues']))
+            self.migration_errors = {
+                'milestone': [],
+                'github': [],
+            }
+            for index, issue in enumerate(self.projects[proj]['Issues']):
+                # Check if this issue has already been created on github
+                if proj in self.cached_data and issue['key'] in self.cached_data[proj]:
+                    bar.update(index)
                     continue
 
-                del issue['milestone_name']
+                # Check for milestone
+                if 'milestone_name' in issue:
+                    issue['milestone'] = self.projects[proj]['Milestones'][issue['milestone_name']]
+                    if issue['milestone'] is None:
+                        self.migration_errors['milestone'].append(issue['title'])
+                        continue
 
-            if len(self.aliases) != 0:
-                result = []
-                for i, label in enumerate(issue['labels']):
-                    if label in self.aliases:
-                        if self.aliases[label] == 'DELETED':
-                            continue
+                    del issue['milestone_name']
 
-                        if self.aliases[label] != 'same':
-                            result.append(self.aliases[label])
-                            continue
-                    result.append(label)
-                issue['labels'] = result
+                if len(self.aliases) != 0:
+                    result = []
+                    for i, label in enumerate(issue['labels']):
+                        if label in self.aliases:
+                            if self.aliases[label] == 'DELETED':
+                                continue
 
-            comments = issue['comments']
-            del issue['comments']
+                            if self.aliases[label] != 'same':
+                                result.append(self.aliases[label])
+                                continue
+                        result.append(label)
+                    issue['labels'] = result
 
-            result = self._save_issue(issue, comments)
-            if result is not True:
-                self.migration_errors['github'].append(
-                    {
-                        'issue': issue,
-                        'result': json.loads(result.content),
-                        'status': result.status_code,
-                    }
-                )
+                comments = issue['comments']
+                del issue['comments']
 
-            bar.update(index)
-        bar.update(len(self.projects[self.jira_project]['Issues']))
+                result = self._save_issue(proj, issue, comments)
+                if result is not True:
+                    self.migration_errors['github'].append(
+                        {
+                            'issue': issue,
+                            'result': result.json(),
+                            'status': result.status_code,
+                        }
+                    )
+
+                bar.update(index)
+            bar.update(len(self.projects[proj]['Issues']))
 
     ##
     # Save issue into github
     #
-    def _save_issue(self, issue, comments):
+    def _save_issue(self, proj, issue, comments):
         if self.dry_run:
-            self._add_cache_data(issue['key'], issue)
+            print(proj)
+            self._add_cache_data(proj, issue['key'], issue)
             return True
 
         response_create = self._execute_request(
@@ -346,8 +368,9 @@ class jira2github:
         if response_create.status_code != 201:
             return response_create
 
-        content = json.loads(response_create.content)
-        self._add_cache_data(issue['key'], content['url'])
+        content = response_create.json()
+        self._add_jira_comments(issue['key'], content['url'])
+        self._add_cache_data(proj, issue['key'], content['url'])
 
         for comment in comments:
             self._execute_request(
@@ -368,11 +391,11 @@ class jira2github:
     ##
     # Save issue key and url into cach file
     #
-    def _add_cache_data(self, key, url):
-        if self.jira_project not in self.cached_data:
-            self.cached_data[self.jira_project] = {}
+    def _add_cache_data(self, proj, key, url):
+        if proj not in self.cached_data:
+            self.cached_data[proj] = {}
 
-        self.cached_data[self.jira_project][key] = url
+        self.cached_data[proj][key] = url
 
     ##
     # Save file cache
@@ -405,7 +428,19 @@ class jira2github:
             self.METHOD_GET,
             'https://api.github.com/rate_limit',
         )
-        print(json.loads(limit.content))
+        print(limit.json())
+
+    ##
+    # Add comments to jira
+    #
+    def _add_jira_comments(self, jira_key, github_issue_url):
+        if not self.jira or self.dry_run:
+            return
+
+        message = self.custom_jira_message
+        message += 'You can follow the activity of this ticket at {}'.format(github_issue_url)
+
+        self.jira.add_comments(jira_key, message)
 
     ##
     # Execute requests

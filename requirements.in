@@ -3,3 +3,4 @@ argparse
 lxml
 requests
 progressbar2
+jira
