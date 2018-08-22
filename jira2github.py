@@ -17,7 +17,8 @@ def main():
     parser.add_argument('--github-user', type=str, help='GitHub user')
     parser.add_argument('--github-password', type=str, help='GitHub password')
     parser.add_argument('--github-token', type=str, help='GitHub Token')
-    parser.add_argument('--custom-github-message', type=str, help='Custom message when creating GitHubissue')
+    parser.add_argument('--custom-github-message', type=str, help='Custom message when creating GitHub issue')
+    parser.add_argument('--custom-comment-github-message', type=str, help='Custom comment message when creating GitHub comment')
     parser.add_argument('--custom-jira-message', type=str, help='Custom message when adding a comment into Jira')
     parser.add_argument('--prettify', action='store_const', const=True, help='show prettify projects')
     parser.add_argument('--dry-run', action='store_const', const=True, help='Enable or disable dry-run')
@@ -53,6 +54,7 @@ def main():
     jira_to_github.set_cache_path(args.cache_path)
     jira_to_github.set_dry_run(args.dry_run)
     jira_to_github.set_custom_github_message(args.custom_github_message)
+    jira_to_github.set_custom_comment_github_message(args.custom_comment_github_message)
     jira_to_github.set_custom_jira_message(args.custom_jira_message)
     jira_to_github.set_jira_config(
         args.jira_url,

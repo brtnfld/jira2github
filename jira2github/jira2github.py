@@ -83,8 +83,16 @@ class jira2github:
         if custom_github_message is not None:
             self.custom_github_message = custom_github_message
         else:
-            self.custom_github_message = 'This issue has been migrated from this Forge ticket'
+            self.custom_github_message = 'This issue has been migrated from the Forge. Read the [original ticket here]({issue_link}).'
 
+    ##
+    # Set custom comment github message
+    #
+    def set_custom_comment_github_message(self, custom_comment_github_message):
+        if custom_comment_github_message is not None:
+            self.custom_comment_github_message = custom_comment_github_message
+        else:
+            self.custom_comment_github_message = 'This comment has been migrated from the Forge. Read the [original comment here]({issue_comment_link}).'
     ##
     # Set custom jira message
     #
@@ -145,7 +153,7 @@ class jira2github:
             resolved_at = ''
 
         body = '''
-> {custom_github_message} [{issue_link}]({issue_link})
+> {custom_github_message}
 
 - _**Reporter:**_ {reporter}
 - _**Created at:**_ {created_at}
@@ -164,13 +172,15 @@ class jira2github:
                     created_at=item.created.text,
                     description=self.htmlentitydecode(item.description.text),
                     resolved_at=resolved_at,
-                    issue_link=item.link.text,
-                    custom_github_message=self.custom_github_message,
+                    custom_github_message=self.custom_github_message.format(
+                        issue_link=item.link.text,
+                    ),
                 ),
                 'labels': [item.status.text, item.type.text],
                 'comments': [],
             }
         )
+
         try:
             self.projects[proj]['Milestones'][item.fixVersion.text] += 1
             # this prop will be deleted later:
@@ -209,21 +219,31 @@ class jira2github:
             for customfield in item.customfields.customfield:
                 if customfield.get('key') == self.TYPE_FLOAT:
                     field_value = int(float(customfield.customfieldvalues.customfieldvalue[0].text))
-                elif isinstance(customfield.customfieldvalues, list):
-                    field_value = customfield.customfieldvalues.customfieldvalue[0].text
+                elif isinstance(customfield.customfieldvalues, objectify.ObjectifiedElement):
+                    field_value = "\n".join([str(c) for c in customfield.customfieldvalues.getchildren()])
                 else:
                     field_value = customfield.customfieldvalues.text
 
                 if customfield.customfieldname.text in ['Story Points']:
                     self.projects[proj]['Labels'][field_value] += 1
-                    self.projects[proj]['Issues'][-1]['labels'].append(field_value)
+                    self.projects[proj]['Issues'][-1]['labels'].append(str(field_value))
+                elif customfield.customfieldname.text in ['How to reproduce the issue ?']:
+                    body = '''
+* {field_name}
+
+{field_value}
+                    '''
+                    self.projects[proj]['Issues'][-1]['body'] += body.format(
+                        field_name=customfield.customfieldname.text,
+                        field_value=field_value
+                    )
         except AttributeError:
             pass
 
         try:
 
             body = '''
-> {custom_github_message} [{issue_link}]({issue_link})
+> {custom_comment_github_message}
 
 - _**Author:**_ {author}
 - _**Created at:**_ {created_at}
@@ -236,8 +256,9 @@ class jira2github:
                         author=comment.get('author'),
                         created_at=comment.get('created'),
                         description=self.htmlentitydecode(comment.text),
-                        issue_link=item.link.text,
-                        custom_github_message=self.custom_github_message,
+                        custom_comment_github_message=self.custom_comment_github_message.format(
+                            issue_comment_link=item.link.text + '#comment-' + comment.get('id')
+                        ),
                     )
                 )
         except AttributeError:
