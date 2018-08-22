@@ -369,8 +369,8 @@ class jira2github:
             return response_create
 
         content = response_create.json()
-        self._add_jira_comments(issue['key'], content['url'])
-        self._add_cache_data(proj, issue['key'], content['url'])
+        self._add_jira_comment(issue['key'], content['html_url'])
+        self._add_cache_data(proj, issue['key'], content['html_url'])
 
         for comment in comments:
             self._execute_request(
@@ -433,14 +433,14 @@ class jira2github:
     ##
     # Add comments to jira
     #
-    def _add_jira_comments(self, jira_key, github_issue_url):
+    def _add_jira_comment(self, jira_key, github_issue_url):
         if not self.jira or self.dry_run:
             return
 
         message = self.custom_jira_message
         message += 'You can follow the activity of this ticket at {}'.format(github_issue_url)
 
-        self.jira.add_comments(jira_key, message)
+        self.jira.add_comment(jira_key, message)
 
     ##
     # Execute requests

@@ -29,10 +29,16 @@ def main():
     github_repo = args.github_repo if args.github_repo else input('GitHub repo: ')
     github_user = None
     github_password = None
+    jira_user = None
+    jira_password = None
 
     if not args.github_token:
         github_user = args.github_user if args.github_user else input('GitHub username: ')
         github_password = args.github_password if args.github_password else getpass.getpass('GitHub password: ')
+
+    if args.jira_url or args.jira_user:
+        jira_user = args.jira_user if args.jira_user else input('Jira username: ')
+        jira_password = args.jira_password if args.jira_password else getpass.getpass('Jira password: ')
 
     jira_to_github = jira2github.jira2github(
         xml_path,
@@ -50,8 +56,8 @@ def main():
     jira_to_github.set_custom_jira_message(args.custom_jira_message)
     jira_to_github.set_jira_config(
         args.jira_url,
-        args.jira_user,
-        args.jira_password
+        jira_user,
+        jira_password
     )
 
     jira_to_github.extract()
