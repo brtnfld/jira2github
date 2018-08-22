@@ -363,6 +363,8 @@ class jira2github:
                             'status': result.status_code,
                         }
                     )
+                    if result.status_code == 403:
+                        raise StopIteration('Could not continue')
 
                 bar.update(index)
             bar.update(len(self.projects[proj]['Issues']))
@@ -388,8 +390,6 @@ class jira2github:
         if response_create.status_code != 201:
             return response_create
 
-        if response_create.status_code == 403:
-            raise StopIteration('Could not continue')
 
         content = response_create.json()
         self._add_jira_comment(issue['key'], content['html_url'])
