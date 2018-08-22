@@ -372,7 +372,6 @@ class jira2github:
     #
     def _save_issue(self, proj, issue, comments):
         if self.dry_run:
-            print(proj)
             self._add_cache_data(proj, issue['key'], issue)
             return True
 
@@ -388,6 +387,9 @@ class jira2github:
         # Error while saving issue
         if response_create.status_code != 201:
             return response_create
+
+        if response_create.status_code == 403:
+            raise StopIteration('Could not continue')
 
         content = response_create.json()
         self._add_jira_comment(issue['key'], content['html_url'])
@@ -406,7 +408,7 @@ class jira2github:
     ##
     # Sleep
     #
-    def _sleep(self, seconds=3):
+    def _sleep(self, seconds=5):
         time.sleep(seconds)
 
     ##
