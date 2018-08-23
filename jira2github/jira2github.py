@@ -408,7 +408,7 @@ class jira2github:
     ##
     # Sleep
     #
-    def _sleep(self, seconds=5):
+    def _sleep(self, seconds=20):
         time.sleep(seconds)
 
     ##
