@@ -4,8 +4,8 @@ import os
 import re
 import requests
 import time
+import progressbar
 from jira import JIRA
-from progressbar.bar import ProgressBar
 from html.entities import name2codepoint
 from lxml import objectify
 from collections import defaultdict
@@ -318,7 +318,7 @@ class jira2github:
     def migrate(self):
         for proj in iter(self.projects.keys()):
             print('Creating issue for proj {}...'.format(proj))
-            bar = ProgressBar(max_value=len(self.projects[proj]['Issues']))
+            bar = progressbar.ProgressBar(max_value=len(self.projects[proj]['Issues']))
             self.migration_errors = {
                 'milestone': [],
                 'github': [],
